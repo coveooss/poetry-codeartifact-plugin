@@ -5,7 +5,7 @@ This Poetry plugin automatically refreshes your authorization token when working
 ## Installation
 
 Run this to install the plugin:
-`poetry self add poetry-codeartifact-plugin`
+`poetry self add git+https://github.com/coveooss/poetry-codeartifact-plugin.git`
 
 And to remove:
 `poetry self remove poetry-codeartifact-plugin`

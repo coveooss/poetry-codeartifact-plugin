@@ -7,15 +7,16 @@ readme = "README.md"
 packages = [{include = "poetry_codeartifact_plugin"}]
 
 [tool.poetry.dependencies]
+# Note: this is a plugin, and is installed inside an existing poetry setup.
+# The versions here must match the minimum versions supported by the plugin.
 python = "^3.8"
-poetry = "^1.2.0"
-boto3 = "^1.24.57"
+poetry = "^1.2.0"  # do not upgrade unless upstream upgrades
+boto3 = "^1.24.57"  # do not upgrade unless upstream upgrades
 
 
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
-
 
 
 [tool.poetry.plugins."poetry.plugin"]
