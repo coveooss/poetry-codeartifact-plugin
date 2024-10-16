@@ -1,3 +1,4 @@
+import os
 import re
 from urllib.parse import urlparse
 
@@ -15,6 +16,7 @@ RE_CODEARTIFACT_NETLOC = re.compile(
     r"^([a-z][a-z-]*)-(\d+)\.d\.codeartifact\.[^.]+\.amazonaws\.com$"
 )
 
+RUNNING_ON_WINDOWS = os.name == 'nt'
 
 def monkeypatch_authenticator(io: IO):
     old_request = Authenticator.request
@@ -45,9 +47,17 @@ def monkeypatch_authenticator(io: IO):
                         raise PoetryException(
                             f"Failed to get a new CodeArtifact authorization token: {err}\n\n-> Are your local AWS credentials up-to-date?"
                         )
-                    self._password_manager.set_http_password(
-                        config.name, "aws", response["authorizationToken"]
-                    )
+
+                    if RUNNING_ON_WINDOWS:
+                        # hack to bypass the keyring which only accepts 1280 chars on windows (token is 1700+)
+                        self._password_manager.warn_plaintext_credentials_stored()
+                        auth = { "username": "aws", "password": response["authorizationToken"] }
+                        self._config.auth_config_source.add_property(f"http-basic.{config.name}", auth)
+                    else:
+                        self._password_manager.set_http_password(
+                            config.name, "aws", response["authorizationToken"]
+                        )
+
                     self.reset_credentials_cache()
                     self._password_manager._config = Config.create(reload=True)
 
