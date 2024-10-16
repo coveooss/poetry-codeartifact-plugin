@@ -45,6 +45,7 @@ def monkeypatch_authenticator(io: IO):
                         raise PoetryException(
                             f"Failed to get a new CodeArtifact authorization token: {err}\n\n-> Are your local AWS credentials up-to-date?"
                         )
+                    self._password_manager.keyring._is_available = False
                     self._password_manager.set_http_password(
                         config.name, "aws", response["authorizationToken"]
                     )
