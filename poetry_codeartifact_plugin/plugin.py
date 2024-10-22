@@ -36,7 +36,7 @@ def monkeypatch_authenticator(io: IO):
                 config = self.get_repository_config_for_url(url)
                 if config:
                     io.write_line(
-                        f"Getting new CodeArtifact authorization token for repo {config.name} ({domain=}, {domain_owner=})..."
+                        f"\nGetting new CodeArtifact authorization token for repo {config.name} ({domain=}, {domain_owner=})..."
                     )
                     try:
                         response = boto3.client("codeartifact").get_authorization_token(
@@ -48,11 +48,20 @@ def monkeypatch_authenticator(io: IO):
                             f"Failed to get a new CodeArtifact authorization token: {err}\n\n-> Are your local AWS credentials up-to-date?"
                         )
 
-                    if RUNNING_ON_WINDOWS:
-                        # hack to bypass the keyring which only accepts 1280 chars on windows (token is 1700+)
-                        self._password_manager.warn_plaintext_credentials_stored()
-                        auth = { "username": "aws", "password": response["authorizationToken"] }
-                        self._config.auth_config_source.add_property(f"http-basic.{config.name}", auth)
+                    try:
+                        self._password_manager.set_http_password(
+                            config.name, "aws", response["authorizationToken"]
+                        )
+                    except Exception as ex:
+                        io.write_line(f"\nFailed to store CodeArtifact authorization token: \n{super(type(ex))}\n{ex}\n{ex.__dict__}")
+                        if RUNNING_ON_WINDOWS:
+                            # hack to bypass the keyring which only accepts 1280 chars on windows (token is 1700+)
+                            set_password_without_keyring(self, response["authorizationToken"], config.name)
+                        else:
+                            raise PoetryException(
+                                f"Failed to store CodeArtifact authorization token: {ex}"
+                            )
+
                     else:
                         self._password_manager.set_http_password(
                             config.name, "aws", response["authorizationToken"]
@@ -69,6 +78,17 @@ def monkeypatch_authenticator(io: IO):
         return response
 
     Authenticator.request = new_request
+
+
+def set_password_without_keyring(self: Authenticator, token: str, repository: str) -> None:
+    # see:
+    # - https://github.com/python-poetry/poetry/issues/6597
+    # - https://github.com/jaraco/keyring/issues/540
+    self._password_manager.warn_plaintext_credentials_stored()
+    self._config.auth_config_source.add_property(
+        f"http-basic.{repository}",
+        {"username": "aws", "password": token}
+    )
 
 
 class CodeArtifactPlugin(Plugin):
